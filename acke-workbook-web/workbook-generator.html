@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>a.C.K.E. 워크북 생성 (개발용)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans KR', sans-serif; }
+        .loader{border:4px solid #f3f3f3;border-radius:50%;border-top:4px solid #3498db;width:36px;height:36px;animation:spin 1s linear infinite}
+        @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        pre{white-space:pre-wrap;word-wrap:break-word}
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+<div class="container mx-auto p-4 md:p-8 max-w-4xl">
+    <header class="text-center mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900">a.C.K.E. 워크북 생성 (개발용)</h1>
+        <p class="mt-2 text-gray-600">영어 지문을 입력하고 a.C.K.E. 4단계 처리 후 워크북(.docx)을 생성합니다.</p>
+    </header>
+
+    <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+        <h2 class="text-xl font-semibold mb-3">1. OpenAI API 키</h2>
+        <input type="password" id="apiKey" placeholder="sk-..." class="w-full p-3 border rounded-lg" />
+        <p class="text-xs text-gray-500 mt-2">브라우저 로컬에만 저장됩니다.</p>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+        <h2 class="text-xl font-semibold mb-3">2. 영어 지문 입력</h2>
+        <textarea id="inputText" rows="8" class="w-full p-3 border rounded-lg" placeholder="영어 지문을 입력하세요..."></textarea>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+        <h2 class="text-xl font-semibold mb-3">3. 서버 설정</h2>
+        <input id="serverUrl" class="w-full p-3 border rounded-lg" placeholder="http://localhost:3000" value="http://localhost:3000" />
+        <p class="text-xs text-gray-500 mt-2">개발 중에는 로컬 서버 주소를 사용하세요.</p>
+    </div>
+
+    <div class="text-center mb-8">
+        <button id="runBtn" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg">워크북 생성</button>
+    </div>
+
+    <div id="loading" class="hidden flex-col items-center my-8">
+        <div class="loader"></div>
+        <p class="mt-3 text-gray-600">처리 중입니다...</p>
+    </div>
+
+    <div id="resultPanel" class="hidden bg-white p-6 rounded-xl shadow-md">
+        <h3 class="text-lg font-semibold mb-2">생성 결과</h3>
+        <div id="downloadArea" class="text-sm text-gray-700"></div>
+    </div>
+</div>
+
+<script src="../step1-analyze.js"></script>
+<script src="../step2-copy.js"></script>
+<script src="../step3-korean.js"></script>
+<script src="../step3-align.js"></script>
+<script src="../step3-isolation.js"></script>
+<script>
+(function(){
+  const apiKeyInput = document.getElementById('apiKey');
+  const inputText = document.getElementById('inputText');
+  const serverUrlInput = document.getElementById('serverUrl');
+  const runBtn = document.getElementById('runBtn');
+  const loading = document.getElementById('loading');
+  const resultPanel = document.getElementById('resultPanel');
+  const downloadArea = document.getElementById('downloadArea');
+
+  const savedKey = localStorage.getItem('openai_api_key');
+  if (savedKey) apiKeyInput.value = savedKey;
+  apiKeyInput.addEventListener('input', ()=>{
+    localStorage.setItem('openai_api_key', apiKeyInput.value);
+  });
+
+  async function callGpt(systemPrompt, userMessage){
+    const key = apiKeyInput.value.trim();
+    if (!key) throw new Error('OpenAI API 키를 입력하세요.');
+    if (!key.startsWith('sk-')) throw new Error('올바른 API 키 형식이 아닙니다. (sk-)');
+    const API_URL = 'https://api.openai.com/v1/chat/completions';
+    const body = {
+      model: 'gpt-4o',
+      messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+      temperature: 0.1,
+      seed: 12345
+    };
+    const resp = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+      body: JSON.stringify(body)
+    });
+    if (!resp.ok){
+      const err = await resp.json().catch(()=>({}));
+      throw new Error(err?.error?.message || 'OpenAI API 호출 실패');
+    }
+    const data = await resp.json();
+    return data.choices[0].message.content.trim();
+  }
+
+  function ensureGlobals(){
+    if (typeof step1Prompts === 'undefined') throw new Error('step1Prompts 로드 실패');
+    if (typeof step2Prompts === 'undefined') throw new Error('step2Prompts 로드 실패');
+    if (typeof isolationPrompts === 'undefined') throw new Error('isolationPrompts 로드 실패');
+  }
+
+  function splitSentencesIntoGroups(text){
+    const lines = text.split(/\r?\n/);
+    const isSentenceTerminal = (t)=>(/[.!?][\)\]"'”’]*$/.test((t||'').trim()));
+    const groups=[]; let cur=[];
+    for (const line of lines){
+      cur.push(line);
+      if (isSentenceTerminal(line)){ groups.push(cur); cur=[]; }
+    }
+    if (cur.length>0) groups.push(cur);
+    return groups;
+  }
+
+  async function runPipeline(originalText){
+    ensureGlobals();
+
+    // Step 1 (요구사항: Analyze는 원문 그대로 사용)
+    const analyze = originalText;
+
+    // Step 2
+    const step2Prompt = `${step2Prompts.role}\n\n${step2Prompts.objective}\n\n${step2Prompts.absoluteRules}\n\n${step2Prompts.chunkingRules}\n\n${step2Prompts.learningCases}\n\n${step2Prompts.output}`;
+    const copy = await callGpt(step2Prompt, originalText);
+
+    // Step 3 (alignment first, fallback to isolation)
+    const groups = splitSentencesIntoGroups(copy);
+    const alignmentAvailable = typeof alignmentPrompts !== 'undefined';
+    const isolationAvailable = typeof isolationPrompts !== 'undefined';
+    const koreanLines = [];
+
+    for (const group of groups){
+      const sentenceEN = group.join(' ').replace(/\s+/g,' ').trim();
+      let groupKO = [];
+      if (alignmentAvailable){
+        const prompt = `${alignmentPrompts.role}\n\n${alignmentPrompts.hardRules}\n\n${alignmentPrompts.guidance}\n\n${alignmentPrompts.example}\n\n${alignmentPrompts.output}`;
+        const userMsg = [
+          '다음은 하나의 영어 문장과, 그 문장을 의미로 분할한 N개의 영어 줄입니다.',
+          '영문 문장을 먼저 한국어로 자연스럽게 이해한 뒤, N개의 한국어 줄로 재분해하여, 각 줄이 입력 영어 줄과 1:1로 정확히 대응되도록 번역하세요.',
+          '',
+          `Sentence (EN): ${sentenceEN}`,
+          `Lines (EN, N=${group.length}):`,
+          ...group,
+          '',
+          `출력: 한국어 ${group.length}줄 (설명 금지, 각 줄은 줄바꿈으로만 구분)`
+        ].join('\n');
+        try{
+          const aligned = await callGpt(prompt, userMsg);
+          const alignedLines = aligned.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+          if (alignedLines.length === group.length) groupKO = alignedLines;
+        }catch(e){ /* fallback */ }
+      }
+      if (groupKO.length === 0){
+        if (!isolationAvailable) throw new Error('isolation 프롬프트 로드 실패');
+        const prompt = `${isolationPrompts.role}\n\n${isolationPrompts.absoluteRules}\n\n${isolationPrompts.examples}\n\n${isolationPrompts.output}`;
+        for (const line of group){
+          const userMsg = `다음 영어 줄만 번역하세요. 다른 줄은 고려하지 마세요:\n${line}`;
+          try{
+            const translated = await callGpt(prompt, userMsg);
+            groupKO.push(translated);
+          }catch(e){ groupKO.push(line); }
+        }
+      }
+      koreanLines.push(...groupKO);
+    }
+
+    // Step 4 (optional - reuse copy as English section per 요구사항)
+    const englishLines = copy; // same as copy
+
+    return { analyze, copy, korean: koreanLines.join('\n'), english: englishLines };
+  }
+
+  async function postToServer(payload){
+    const base = serverUrlInput.value.replace(/\/$/, '');
+    const url = `${base}/create-workbook`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok){
+      const err = await resp.json().catch(()=>({}));
+      throw new Error(err?.message || '서버 요청 실패');
+    }
+    return resp.json();
+  }
+
+  runBtn.addEventListener('click', async ()=>{
+    const text = inputText.value.trim();
+    if (!text) { alert('영어 지문을 입력하세요.'); return; }
+    runBtn.disabled = true; loading.classList.remove('hidden'); resultPanel.classList.add('hidden');
+    downloadArea.innerHTML = '';
+    try{
+      const { analyze, copy, korean, english } = await runPipeline(text);
+      const res = await postToServer({
+        analyzeText: analyze,
+        copyText: copy,
+        koreanText: korean,
+        englishText: english,
+        // Ensure underline extension to the right by padding with NBSP to a fixed length
+        options: { padMode: 'underline', targetCharsPerLine: 400 }
+      });
+      const base = serverUrlInput.value.replace(/\/$/, '');
+      const link = `${base}${res.downloadUrl}`;
+      resultPanel.classList.remove('hidden');
+      downloadArea.innerHTML = `<a class="text-blue-600 underline" href="${link}" target="_blank">생성된 워크북 다운로드: ${res.fileName}</a>`;
+    }catch(e){
+      alert(e.message);
+    }finally{
+      runBtn.disabled = false; loading.classList.add('hidden');
+    }
+  });
+})();
+</script>
+</body>
+</html>
