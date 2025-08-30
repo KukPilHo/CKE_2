@@ -417,11 +417,11 @@
 
             async function runDemo(text) {
                 try {
-                    // Step 1: Analyze - step1Prompts.role 사용
-                    if (!step1Prompts || !step1Prompts.role) {
+                    // Step 1: Analyze - step1Prompts.instruction 사용
+                    if (!step1Prompts || !step1Prompts.instruction) {
                         throw new Error('Step 1 프롬프트를 찾을 수 없습니다.');
                     }
-                    const step1Result = await callGpt(step1Prompts.role, text);
+                    const step1Result = await callGpt(step1Prompts.instruction, text);
                     document.getElementById('step1-output').textContent = step1Result;
 
                     // Step 2: Copy
