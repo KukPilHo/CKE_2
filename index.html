@@ -3,303 +3,471 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>a.C.K.E. 영어 학습법 자동 생성기</title>
+    <title>a.C.K.E. 도구</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', 'Noto Sans KR', sans-serif; }
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 4px solid #3498db;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            font-family: 'Inter', 'Noto Sans KR', monospace;
+        .loader{border:4px solid #f3f3f3;border-radius:50%;border-top:4px solid #3498db;width:36px;height:36px;animation:spin 1s linear infinite}
+        @keyframes spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+        pre{white-space:pre-wrap;word-wrap:break-word}
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .tab-button.active { 
+            background-color: #2563eb; 
+            color: white; 
         }
     </style>
+    <!-- 워크북 생성을 위한 라이브러리들 -->
+    <script src="https://unpkg.com/pizzip@3.1.5/dist/pizzip.min.js"></script>
+    <script src="https://unpkg.com/docxtemplater@3.47.4/build/docxtemplater.js"></script>
+    <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
-
-    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
-        
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
         <header class="text-center mb-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">a.C.K.E. 영어 학습법 자동 시연</h1>
-            <p class="mt-2 text-gray-600">영어 지문을 입력하면 a.C.K.E. 학습법의 4단계를 자동으로 생성합니다.</p>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">a.C.K.E. 도구</h1>
+            <p class="mt-2 text-gray-600">영어 학습을 위한 워크북 생성 및 a.C.K.E. 4단계 시연 도구</p>
         </header>
 
-        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-            <h2 class="text-xl font-semibold mb-3">1. OpenAI API 키 설정</h2>
-            <p class="text-sm text-gray-600 mb-4">
-                API 키는 서버에 저장되지 않고, 현재 사용 중인 브라우저에만 안전하게 보관됩니다. 
-                <a href="https://platform.openai.com/account/api-keys" target="_blank" class="text-blue-600 hover:underline">여기</a>에서 API 키를 발급받을 수 있습니다.
-            </p>
-            <input type="password" id="apiKey" placeholder="sk-..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-        </div>
-
-        <div class="bg-white p-6 rounded-xl shadow-md mb-6">
-            <h2 class="text-xl font-semibold mb-3">2. 분석할 영어 지문 입력</h2>
-            <textarea id="inputText" rows="8" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="분석하고 싶은 영어 지문을 여기에 붙여넣으세요. 예: The practice of medicine has meant the average age to which people in all nations may expect to live is higher than it has been in recorded history..."></textarea>
-        </div>
-
-        <div class="text-center mb-8">
-            <button id="runButton" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none">
-                결과 생성
+        <!-- 탭 버튼들 -->
+        <div class="flex justify-center mb-8">
+            <button id="tab-workbook" class="tab-button active px-6 py-3 mx-2 rounded-lg font-semibold transition-colors bg-blue-600 text-white">
+                📚 워크북 생성
+            </button>
+            <button id="tab-demo" class="tab-button px-6 py-3 mx-2 rounded-lg font-semibold transition-colors bg-gray-200 text-gray-700 hover:bg-gray-300">
+                🎯 a.C.K.E. 데모
             </button>
         </div>
 
-        <div id="loadingIndicator" class="hidden flex-col items-center justify-center my-8">
-            <div class="loader"></div>
-            <p class="mt-4 text-gray-600">결과를 생성 중입니다. 잠시만 기다려주세요...</p>
+        <!-- 워크북 생성 탭 -->
+        <div id="workbook-tab" class="tab-content active">
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-xl font-semibold mb-3">1. OpenAI API 키</h2>
+                <input type="password" id="apiKey" placeholder="sk-..." class="w-full p-3 border rounded-lg" />
+                <p class="text-xs text-gray-500 mt-2">브라우저 로컬에만 저장됩니다.</p>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-xl font-semibold mb-3">2. 영어 지문 입력</h2>
+                <textarea id="inputText" rows="8" class="w-full p-3 border rounded-lg" placeholder="영어 지문을 입력하세요..."></textarea>
+            </div>
+
+            <div class="text-center mb-8">
+                <button id="runBtn" class="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors">워크북 생성</button>
+            </div>
+
+            <div id="loading" class="hidden flex-col items-center my-8">
+                <div class="loader"></div>
+                <p class="mt-3 text-gray-600">처리 중입니다...</p>
+            </div>
+
+            <div id="resultPanel" class="hidden bg-white p-6 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold mb-2">생성 결과</h3>
+                <p id="downloadArea" class="text-sm text-gray-700">워크북 생성이 완료되었습니다. 다운로드가 자동으로 시작됩니다.</p>
+            </div>
         </div>
-        
-        <div id="results" class="space-y-6">
-            <div id="step1-container" class="hidden bg-white p-6 rounded-xl shadow-md">
-                <h3 class="text-2xl font-bold mb-4 border-b pb-2 text-indigo-600">1단계: Analyze (문장 성분 분석)</h3>
-                <pre id="step1-output" class="text-gray-700 leading-relaxed"></pre>
+
+        <!-- a.C.K.E. 데모 탭 -->
+        <div id="demo-tab" class="tab-content">
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-xl font-semibold mb-3">1. OpenAI API 키</h2>
+                <input type="password" id="demoApiKey" placeholder="sk-..." class="w-full p-3 border rounded-lg" />
+                <p class="text-xs text-gray-500 mt-2">브라우저 로컬에만 저장됩니다.</p>
             </div>
-            <div id="step2-container" class="hidden bg-white p-6 rounded-xl shadow-md">
-                <h3 class="text-2xl font-bold mb-4 border-b pb-2 text-teal-600">2단계: Copy (의미 블록 나누기)</h3>
-                <pre id="step2-output" class="text-gray-700 leading-relaxed"></pre>
+
+            <div class="bg-white p-6 rounded-xl shadow-md mb-6">
+                <h2 class="text-xl font-semibold mb-3">2. 영어 지문 입력</h2>
+                <textarea id="demoInputText" rows="8" class="w-full p-3 border rounded-lg" placeholder="영어 지문을 입력하세요..."></textarea>
             </div>
-            <div id="step3-container" class="hidden bg-white p-6 rounded-xl shadow-md">
-                <h3 class="text-2xl font-bold mb-4 border-b pb-2 text-amber-600">3단계: Korean (블록 단위 해석)</h3>
-                <pre id="step3-output" class="text-gray-700 leading-relaxed"></pre>
+
+            <div class="text-center mb-8">
+                <button id="demoRunBtn" class="w-full md:w-auto bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 transition-colors">a.C.K.E. 4단계 실행</button>
             </div>
-            <div id="step4-container" class="hidden bg-white p-6 rounded-xl shadow-md">
-                <h3 class="text-2xl font-bold mb-4 border-b pb-2 text-rose-600">4단계: English (영작 복원)</h3>
-                <pre id="step4-output" class="text-gray-700 leading-relaxed"></pre>
+
+            <div id="demoLoading" class="hidden flex-col items-center my-8">
+                <div class="loader"></div>
+                <p class="mt-3 text-gray-600">처리 중입니다...</p>
+            </div>
+
+            <div id="demoResultPanel" class="hidden bg-white p-6 rounded-xl shadow-md">
+                <h3 class="text-lg font-semibold mb-2">a.C.K.E. 4단계 결과</h3>
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-semibold text-blue-600">Step 1: Analyze (분석)</h4>
+                        <pre id="step1-output" class="text-gray-700 leading-relaxed bg-gray-50 p-3 rounded"></pre>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-green-600">Step 2: Copy (복사)</h4>
+                        <pre id="step2-output" class="text-gray-700 leading-relaxed bg-gray-50 p-3 rounded"></pre>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-purple-600">Step 3: Korean (한국어 번역)</h4>
+                        <pre id="step3-output" class="text-gray-700 leading-relaxed bg-gray-50 p-3 rounded"></pre>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-orange-600">Step 4: English (영어 정렬)</h4>
+                        <pre id="step4-output" class="text-gray-700 leading-relaxed bg-gray-50 p-3 rounded"></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
+    <!-- 스크립트 파일들 로드 -->
     <script src="step1-analyze.js"></script>
     <script src="step2-copy.js"></script>
     <script src="step3-korean.js"></script>
     <script src="step3-align.js"></script>
+    <script src="step3-isolation.js"></script>
+
     <script>
-        // 모든 스크립트가 로드되었는지 확인
-        window.addEventListener('load', () => {
-            console.log('모든 리소스 로드 완료');
-            console.log('step1Prompts:', typeof step1Prompts);
-            console.log('step2Prompts:', typeof step2Prompts);
-            console.log('isolationPrompts:', typeof isolationPrompts);
+        // 탭 전환 기능
+        function switchTab(tabName) {
+            // 모든 탭 내용 숨기기
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
             
-            // 전역 변수들이 제대로 로드되었는지 확인
-            if (typeof step1Prompts === 'undefined') {
-                console.error('step1Prompts가 로드되지 않았습니다.');
-            }
-            if (typeof step2Prompts === 'undefined') {
-                console.error('step2Prompts가 로드되지 않았습니다.');
-            }
-            if (typeof isolationPrompts === 'undefined') {
-                console.error('isolationPrompts가 로드되지 않았습니다.');
-            }
-        });
-        document.addEventListener('DOMContentLoaded', () => {
+            // 모든 탭 버튼 비활성화
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            });
+            
+            // 선택된 탭 활성화
+            document.getElementById(tabName + '-tab').classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.getElementById('tab-' + tabName).classList.remove('bg-gray-200', 'text-gray-700');
+            document.getElementById('tab-' + tabName).classList.add('bg-blue-600', 'text-white');
+        }
+
+        // 탭 버튼 이벤트 리스너
+        document.getElementById('tab-workbook').addEventListener('click', () => switchTab('workbook'));
+        document.getElementById('tab-demo').addEventListener('click', () => switchTab('demo'));
+
+        // 워크북 생성 기능
+        (function(){
             const apiKeyInput = document.getElementById('apiKey');
             const inputText = document.getElementById('inputText');
-            const runButton = document.getElementById('runButton');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const resultsContainer = document.getElementById('results');
-            const step1Container = document.getElementById('step1-container');
-            const step2Container = document.getElementById('step2-container');
-            const step3Container = document.getElementById('step3-container');
-            const step4Container = document.getElementById('step4-container');
-            const step1Output = document.getElementById('step1-output');
-            const step2Output = document.getElementById('step2-output');
-            const step3Output = document.getElementById('step3-output');
-            const step4Output = document.getElementById('step4-output');
+            const runBtn = document.getElementById('runBtn');
+            const loading = document.getElementById('loading');
+            const resultPanel = document.getElementById('resultPanel');
+            const downloadArea = document.getElementById('downloadArea');
 
-            const savedApiKey = localStorage.getItem('openai_api_key');
-            if (savedApiKey) {
-                apiKeyInput.value = savedApiKey;
-            }
-
-            apiKeyInput.addEventListener('input', () => {
+            const savedKey = localStorage.getItem('openai_api_key');
+            if (savedKey) apiKeyInput.value = savedKey;
+            apiKeyInput.addEventListener('input', ()=>{
                 localStorage.setItem('openai_api_key', apiKeyInput.value);
             });
 
-            runButton.addEventListener('click', runAnalysis);
-
-            async function callGpt(systemPrompt, userMessage) {
-                const apiKey = apiKeyInput.value.trim();
-                if (!apiKey) throw new Error('OpenAI API 키를 입력해주세요.');
-                if (!apiKey.startsWith('sk-')) throw new Error('올바른 OpenAI API 키 형식이 아닙니다. (sk-로 시작해야 합니다)');
-                
+            async function callGpt(systemPrompt, userMessage){
+                const key = apiKeyInput.value.trim();
+                if (!key) throw new Error('OpenAI API 키를 입력하세요.');
+                if (!key.startsWith('sk-')) throw new Error('올바른 API 키 형식이 아닙니다. (sk-)');
                 const API_URL = 'https://api.openai.com/v1/chat/completions';
-                const requestBody = {
+                const body = {
                     model: 'gpt-4o',
                     messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
-                    temperature: 0.1,  
+                    temperature: 0.1,
                     seed: 12345
                 };
-                
-                const response = await fetch(API_URL, {
+                const resp = await fetch(API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-                    body: JSON.stringify(requestBody)
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                    body: JSON.stringify(body)
                 });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`API 오류: ${errorData.error.message}`);
+                if (!resp.ok){
+                    const err = await resp.json().catch(()=>({}));
+                    throw new Error(err?.error?.message || 'OpenAI API 호출 실패');
                 }
-                
-                const data = await response.json();
+                const data = await resp.json();
                 return data.choices[0].message.content.trim();
             }
 
-            async function runAnalysis() {
-                if (!apiKeyInput.value.trim() || !inputText.value.trim()) {
-                    alert('API 키와 분석할 영어 지문을 모두 입력해주세요.');
-                    return;
+            function ensureGlobals(){
+                if (typeof step1Prompts === 'undefined') throw new Error('step1Prompts 로드 실패');
+                if (typeof step2Prompts === 'undefined') throw new Error('step2Prompts 로드 실패');
+                if (typeof isolationPrompts === 'undefined') throw new Error('isolationPrompts 로드 실패');
+            }
+
+            function splitSentencesIntoGroups(text){
+                const lines = text.split(/\r?\n/);
+                const isSentenceTerminal = (t)=>(/[.!?][\)\]"'""]*$/.test((t||'').trim()));
+                const groups=[]; let cur=[];
+                for (const line of lines){
+                    cur.push(line);
+                    if (isSentenceTerminal(line)){ groups.push(cur); cur=[]; }
                 }
+                if (cur.length>0) groups.push(cur);
+                return groups;
+            }
 
-                runButton.disabled = true;
-                loadingIndicator.classList.remove('hidden');
-                loadingIndicator.classList.add('flex');
-                [step1Container, step2Container, step3Container, step4Container].forEach(c => c.classList.add('hidden'));
-
-                try {
-                    const originalText = inputText.value.trim();
-                    
-                    // 변수 존재 확인
-                    if (typeof step1Prompts === 'undefined') {
-                        throw new Error('step1Prompts가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            async function runPipeline(originalText){
+                ensureGlobals();
+                const analyze = originalText;
+                const step2Prompt = `${step2Prompts.role}\n\n${step2Prompts.objective}\n\n${step2Prompts.absoluteRules}\n\n${step2Prompts.chunkingRules}\n\n${step2Prompts.learningCases}\n\n${step2Prompts.output}`;
+                const copy = await callGpt(step2Prompt, originalText);
+                const groups = splitSentencesIntoGroups(copy);
+                const alignmentAvailable = typeof alignmentPrompts !== 'undefined';
+                const isolationAvailable = typeof isolationPrompts !== 'undefined';
+                const koreanLines = [];
+                for (const group of groups){
+                    const sentenceEN = group.join(' ').replace(/\s+/g,' ').trim();
+                    let groupKO = [];
+                    if (alignmentAvailable){
+                        const prompt = `${alignmentPrompts.role}\n\n${alignmentPrompts.hardRules}\n\n${alignmentPrompts.guidance}\n\n${alignmentPrompts.example}\n\n${alignmentPrompts.output}`;
+                        const userMsg = [
+                            '다음은 하나의 영어 문장과, 그 문장을 의미로 분할한 N개의 영어 줄입니다.',
+                            '영문 문장을 먼저 한국어로 자연스럽게 이해한 뒤, N개의 한국어 줄로 재분해하여, 각 줄이 입력 영어 줄과 1:1로 정확히 대응되도록 번역하세요.',
+                            '',
+                            `Sentence (EN): ${sentenceEN}`,
+                            `Lines (EN, N=${group.length}):`,
+                            ...group,
+                            '',
+                            `출력: 한국어 ${group.length}줄 (설명 금지, 각 줄은 줄바꿈으로만 구분)`
+                        ].join('\n');
+                        try{
+                            const aligned = await callGpt(prompt, userMsg);
+                            const alignedLines = aligned.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+                            if (alignedLines.length === group.length) groupKO = alignedLines;
+                        }catch(e){ /* fallback */ }
                     }
-                    if (typeof step2Prompts === 'undefined') {
-                        throw new Error('step2Prompts가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+                    if (groupKO.length === 0){
+                        if (!isolationAvailable) throw new Error('isolation 프롬프트 로드 실패');
+                        const prompt = `${isolationPrompts.role}\n\n${isolationPrompts.absoluteRules}\n\n${isolationPrompts.examples}\n\n${isolationPrompts.output}`;
+                        for (const line of group){
+                            const userMsg = `다음 영어 줄만 번역하세요. 다른 줄은 고려하지 마세요:\n${line}`;
+                            try{
+                                const translated = await callGpt(prompt, userMsg);
+                                groupKO.push(translated);
+                            }catch(e){ groupKO.push(line); }
+                        }
                     }
-                    
-                    // Step 1: Analyze - 문장 성분 분석
-                    const step1Prompt = `${step1Prompts.role}\n\n${step1Prompts.rules}\n\n${step1Prompts.principles}\n\n${step1Prompts.examples}\n\n${step1Prompts.output}`;
-                    const step1Result = await callGpt(step1Prompt, originalText);
-                    step1Output.textContent = step1Result;
-                    step1Container.classList.remove('hidden');
+                    koreanLines.push(...groupKO);
+                }
+                const englishLines = copy;
+                return { analyze, copy, korean: koreanLines.join('\n'), english: englishLines };
+            }
 
-                    // Step 2: Copy - 의미 블록 나누기
-                    const step2Prompt = `${step2Prompts.role}\n\n${step2Prompts.objective}\n\n${step2Prompts.absoluteRules}\n\n${step2Prompts.chunkingRules}\n\n${step2Prompts.learningCases}\n\n${step2Prompts.output}`;
-                    const step2Result = await callGpt(step2Prompt, originalText);
-                    step2Output.textContent = step2Result;
-                    step2Container.classList.remove('hidden');
+            // DOCX 생성을 위한 데이터 처리 함수
+            function prepareDataForTemplate(analyzeText, copyText, koreanText, englishText, options = {}) {
+                const padMode = options.padMode || 'nbsp'; 
+                const targetCharsPerLine = Number(options.targetCharsPerLine || 400);
+                
+                const cleanAnalyzeText = (analyzeText || '').trim().replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
+                const copyLines = (copyText || '').trim().split(/\r?\n/).map(line => line.replace(/\r$/, '')).filter(line => line.trim() !== '');
+                const koreanLines = (koreanText || '').trim().split(/\r?\n/).map(line => line.replace(/\r$/, '')).filter(line => line.trim() !== '');
+                
+                if (copyLines.length !== koreanLines.length) {
+                    console.warn(`Warning: English lines (${copyLines.length}) and Korean lines (${koreanLines.length}) do not match.`);
+                }
+                
+                const copyKoreanPairs = [];
+                const maxLength = Math.min(copyLines.length, koreanLines.length);
+                
+                for (let i = 0; i < maxLength; i++) {
+                    copyKoreanPairs.push({ en_line: copyLines[i], ko_line: koreanLines[i] });
+                }
+                
+                const NBSP = '\u00A0';
+                const englishSourceLines = (englishText && englishText.trim().length > 0)
+                    ? englishText.trim().split(/\r?\n/).filter(line => line.trim() !== '')
+                    : copyLines;
+                const english_lines = englishSourceLines.map(line => ({ en_line: line }));
+                const copy_lines = copyLines.map(line => ({ en_line: line }));
+                const korean_lines = koreanLines.map(line => ({ ko_line: line }));
 
-                    // Step 3: Korean - 정렬 기반 문장 단위 해석 (문장별 N-in → N-out 보장)
-                    let step3Result = '';
-
-                    const lines = step2Result.split(/\r?\n/);
-
-                    // 문장 끝 감지 (., ?, ! 및 닫는 따옴표/괄호 포함)
-                    const isSentenceTerminal = (text) => {
-                        const t = (text || '').trim();
-                        return /[.!?][\)\]\"'”’]*$/.test(t);
+                if (padMode === 'underline' && targetCharsPerLine > 0) {
+                    const padToLen = (text) => {
+                        const base = (text || '').toString();
+                        if (base.length >= targetCharsPerLine) return base;
+                        return base + NBSP.repeat(targetCharsPerLine - base.length);
                     };
+                    copyKoreanPairs.forEach(p => { p.en_line = padToLen(p.en_line); p.ko_line = padToLen(p.ko_line); });
+                    copy_lines.forEach(o => { o.en_line = padToLen(o.en_line); });
+                    korean_lines.forEach(o => { o.ko_line = padToLen(o.ko_line); });
+                    english_lines.forEach(o => { o.en_line = padToLen(o.en_line); });
+                }
+                
+                return {
+                    analyze_text: cleanAnalyzeText,
+                    copy_korean_pairs: copyKoreanPairs,
+                    english_lines,
+                    copy_lines,
+                    korean_lines
+                };
+            }
 
-                    // 의미 블록을 문장 단위 그룹으로 묶기
-                    const sentenceGroups = [];
-                    let currentGroup = [];
-                    for (const line of lines) {
-                        currentGroup.push(line);
-                        if (isSentenceTerminal(line)) {
-                            sentenceGroups.push(currentGroup);
-                            currentGroup = [];
-                        }
+            // 브라우저에서 DOCX 생성 및 다운로드
+            async function generateAndDownloadDocx(payload) {
+                try {
+                    // 라이브러리 로드 상태 확인
+                    if (typeof PizZip === 'undefined') {
+                        throw new Error('PizZip 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
                     }
-                    if (currentGroup.length > 0) {
-                        sentenceGroups.push(currentGroup);
+                    if (typeof docxtemplater === 'undefined') {
+                        throw new Error('Docxtemplater 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
                     }
-
-                    const alignedKoreanLines = [];
-
-                    const useAlignment = typeof alignmentPrompts !== 'undefined';
-                    const useIsolation = typeof isolationPrompts !== 'undefined';
-
-                    // 준비: 프롬프트 조립
-                    const alignmentPrompt = useAlignment
-                        ? `${alignmentPrompts.role}\n\n${alignmentPrompts.hardRules}\n\n${alignmentPrompts.guidance}\n\n${alignmentPrompts.example}\n\n${alignmentPrompts.output}`
-                        : null;
-                    const isolationPrompt = useIsolation
-                        ? `${isolationPrompts.role}\n\n${isolationPrompts.absoluteRules}\n\n${isolationPrompts.examples}\n\n${isolationPrompts.output}`
-                        : null;
-
-                    // 문장 단위로 정렬 번역 시도, 실패 시 라인 격리 번역으로 폴백
-                    for (const group of sentenceGroups) {
-                        const sentenceEN = group.join(' ').replace(/\s+/g, ' ').trim();
-
-                        let groupKO = [];
-                        if (useAlignment) {
-                            const userMsg = [
-                                '다음은 하나의 영어 문장과, 그 문장을 의미로 분할한 N개의 영어 줄입니다.',
-                                '영문 문장을 먼저 한국어로 자연스럽게 이해한 뒤, N개의 한국어 줄로 재분해하여, 각 줄이 입력 영어 줄과 1:1로 정확히 대응되도록 번역하세요.',
-                                '',
-                                `Sentence (EN): ${sentenceEN}`,
-                                `Lines (EN, N=${group.length}):`,
-                                ...group,
-                                '',
-                                `출력: 한국어 ${group.length}줄 (설명 금지, 각 줄은 줄바꿈으로만 구분)`
-                            ].join('\n');
-
-                            try {
-                                const aligned = await callGpt(alignmentPrompt, userMsg);
-                                const alignedLines = aligned.split(/\r?\n/).map(s => s.trim()).filter(s => s.length > 0);
-                                if (alignedLines.length === group.length) {
-                                    groupKO = alignedLines;
-                                } else {
-                                    console.warn('정렬 번역 줄 수 불일치. 격리 번역으로 폴백합니다.', { expected: group.length, got: alignedLines.length });
-                                }
-                            } catch (e) {
-                                console.warn('정렬 번역 실패. 격리 번역으로 폴백합니다.', e);
-                            }
-                        }
-
-                        if (groupKO.length === 0) {
-                            if (!useIsolation) throw new Error('isolationPrompts가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
-                            for (const line of group) {
-                                const userMsg = `다음 영어 줄만 번역하세요. 다른 줄은 고려하지 마세요:\n${line}`;
-                                try {
-                                    const translated = await callGpt(isolationPrompt, userMsg);
-                                    groupKO.push(translated);
-                                } catch (error) {
-                                    console.error('라인 번역 실패. 원문 유지:', error);
-                                    groupKO.push(line);
-                                }
-                            }
-                        }
-
-                        alignedKoreanLines.push(...groupKO);
+                    if (typeof saveAs === 'undefined') {
+                        throw new Error('FileSaver 라이브러리가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
                     }
 
-                    step3Result = alignedKoreanLines.join('\n');
+                    // 1. template.docx 파일을 fetch로 불러오기
+                    const response = await fetch('template.docx');
+                    if (!response.ok) throw new Error('template.docx 파일을 불러오는데 실패했습니다.');
+                    const content = await response.arrayBuffer();
 
-                    step3Output.textContent = step3Result;
-                    step3Container.classList.remove('hidden');
+                    // 2. Docxtemplater 인스턴스 생성
+                    const zip = new PizZip(content);
+                    const doc = new docxtemplater(zip, {
+                        paragraphLoop: true,
+                        linebreaks: true,
+                    });
 
-                    // Step 4: English - 영작 복원
-                    if (typeof step4Prompts !== 'undefined') {
-                        const step4Prompt = `${step4Prompts.role}\n\n${step4Prompts.objective}\n\n${step4Prompts.rules}\n\n${step4Prompts.output}`;
-                        const step4Result = await callGpt(step4Prompt, step3Result);
-                        step4Output.textContent = step4Result;
-                        step4Container.classList.remove('hidden');
-                    } else {
-                        console.log('step4Prompts가 없어 4단계를 건너뜁니다.');
-                    }
+                    // 3. 데이터 준비
+                    const { analyzeText, copyText, koreanText, englishText, options } = payload;
+                    const templateData = prepareDataForTemplate(analyzeText, copyText, koreanText, englishText, options);
+
+                    // 4. 템플릿에 데이터 채우기
+                    doc.render(templateData);
+
+                    // 5. 결과 파일을 Blob 형태로 생성
+                    const out = doc.getZip().generate({
+                        type: 'blob',
+                        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    });
+                    
+                    // 6. FileSaver.js를 사용해 파일 다운로드
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const outputFileName = `workbook_${timestamp}.docx`;
+                    saveAs(out, outputFileName);
+                    
+                    resultPanel.classList.remove('hidden');
+                    downloadArea.textContent = `${outputFileName} 파일 다운로드가 시작되었습니다.`;
+
                 } catch (error) {
-                    alert(error.message);
-                } finally {
-                    runButton.disabled = false;
-                    loadingIndicator.classList.add('hidden');
-                    loadingIndicator.classList.remove('flex');
+                    console.error('Error generating document:', error);
+                    alert(`워크북 생성 중 오류 발생: ${error.message}`);
                 }
             }
-        });
+
+            runBtn.addEventListener('click', async ()=>{
+                const text = inputText.value.trim();
+                if (!text) { alert('영어 지문을 입력하세요.'); return; }
+                runBtn.disabled = true; loading.classList.remove('hidden'); resultPanel.classList.add('hidden');
+                downloadArea.innerHTML = '';
+                try{
+                    const { analyze, copy, korean, english } = await runPipeline(text);
+                    
+                    await generateAndDownloadDocx({
+                        analyzeText: analyze,
+                        copyText: copy,
+                        koreanText: korean,
+                        englishText: english,
+                        options: { padMode: 'none' }
+                    });
+
+                }catch(e){
+                    alert(e.message);
+                }finally{
+                    runBtn.disabled = false; loading.classList.add('hidden');
+                }
+            });
+        })();
+
+        // a.C.K.E. 데모 기능
+        (function(){
+            const apiKeyInput = document.getElementById('demoApiKey');
+            const inputText = document.getElementById('demoInputText');
+            const runBtn = document.getElementById('demoRunBtn');
+            const loading = document.getElementById('demoLoading');
+            const resultPanel = document.getElementById('demoResultPanel');
+
+            const savedKey = localStorage.getItem('demo_openai_api_key');
+            if (savedKey) apiKeyInput.value = savedKey;
+            apiKeyInput.addEventListener('input', ()=>{
+                localStorage.setItem('demo_openai_api_key', apiKeyInput.value);
+            });
+
+            async function callGpt(systemPrompt, userMessage){
+                const key = apiKeyInput.value.trim();
+                if (!key) throw new Error('OpenAI API 키를 입력하세요.');
+                if (!key.startsWith('sk-')) throw new Error('올바른 API 키 형식이 아닙니다. (sk-)');
+                const API_URL = 'https://api.openai.com/v1/chat/completions';
+                const body = {
+                    model: 'gpt-4o',
+                    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+                    temperature: 0.1,
+                    seed: 12345
+                };
+                const resp = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${key}` },
+                    body: JSON.stringify(body)
+                });
+                if (!resp.ok){
+                    const err = await resp.json().catch(()=>({}));
+                    throw new Error(err?.error?.message || 'OpenAI API 호출 실패');
+                }
+                const data = await resp.json();
+                return data.choices[0].message.content.trim();
+            }
+
+            async function runDemo(text) {
+                try {
+                    // Step 1: Analyze - step1Prompts.instruction 사용
+                    if (!step1Prompts || !step1Prompts.instruction) {
+                        throw new Error('Step 1 프롬프트를 찾을 수 없습니다.');
+                    }
+                    const step1Result = await callGpt(step1Prompts.instruction, text);
+                    document.getElementById('step1-output').textContent = step1Result;
+
+                    // Step 2: Copy
+                    if (!step2Prompts || !step2Prompts.role) {
+                        throw new Error('Step 2 프롬프트를 찾을 수 없습니다.');
+                    }
+                    const step2Prompt = `${step2Prompts.role}\n\n${step2Prompts.objective}\n\n${step2Prompts.absoluteRules}\n\n${step2Prompts.chunkingRules}\n\n${step2Prompts.learningCases}\n\n${step2Prompts.output}`;
+                    const step2Result = await callGpt(step2Prompt, text);
+                    document.getElementById('step2-output').textContent = step2Result;
+
+                    // Step 3: Korean
+                    if (!isolationPrompts || !isolationPrompts.role) {
+                        throw new Error('Step 3 프롬프트를 찾을 수 없습니다.');
+                    }
+                    const step3Prompt = `${isolationPrompts.role}\n\n${isolationPrompts.absoluteRules}\n\n${isolationPrompts.examples}\n\n${isolationPrompts.output}`;
+                    const step3Result = await callGpt(step3Prompt, step2Result);
+                    document.getElementById('step3-output').textContent = step3Result;
+
+                    // Step 4: English alignment
+                    if (typeof alignmentPrompts !== 'undefined') {
+                        const step4Prompt = `${alignmentPrompts.role}\n\n${alignmentPrompts.hardRules}\n\n${alignmentPrompts.guidance}\n\n${alignmentPrompts.example}\n\n${alignmentPrompts.output}`;
+                        const step4Result = await callGpt(step4Prompt, `영어: ${step2Result}\n한국어: ${step3Result}`);
+                        document.getElementById('step4-output').textContent = step4Result;
+                    } else {
+                        document.getElementById('step4-output').textContent = "Alignment 기능을 사용할 수 없습니다.";
+                    }
+
+                    resultPanel.classList.remove('hidden');
+                } catch (error) {
+                    alert(`데모 실행 중 오류 발생: ${error.message}`);
+                }
+            }
+
+            runBtn.addEventListener('click', async ()=>{
+                const text = inputText.value.trim();
+                if (!text) { alert('영어 지문을 입력하세요.'); return; }
+                runBtn.disabled = true; loading.classList.remove('hidden'); resultPanel.classList.add('hidden');
+                try{
+                    await runDemo(text);
+                }catch(e){
+                    alert(e.message);
+                }finally{
+                    runBtn.disabled = false; loading.classList.add('hidden');
+                }
+            });
+        })();
     </script>
 </body>
 </html>
