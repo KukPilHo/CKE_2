@@ -26,9 +26,9 @@ function prepareDataForTemplate(analyzeText, copyText, koreanText, englishText, 
 
     const cleanAnalyzeText = (analyzeText || '')
         .trim()
-        .split(/\r?\n/)
-        .filter(line => line.trim() !== '') 
-        .join('\n'); 
+        .replace(/\r?\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
     const copyLines = (copyText || '')
         .trim()
