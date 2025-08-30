@@ -23,11 +23,20 @@ function prepareDataForTemplate(analyzeText, copyText, koreanText, englishText, 
     const padMode = options.padMode || 'nbsp'; // 'nbsp' | 'underscore' | 'underline'
     const targetCharsPerLine = Number(options.targetCharsPerLine || 400);
     // 1. copyText와 koreanText를 줄바꿈 기준으로 배열로 분할
+
+    const cleanAnalyzeText = (analyzeText || '')
+        .trim()
+        .split(/\r?\n/)
+        .filter(line => line.trim() !== '') 
+        .join('\n'); 
+
     const copyLines = (copyText || '')
+        .trim()
         .split(/\r?\n/)
         .map(line => line.replace(/\r$/, ''))
         .filter(line => line.trim() !== '');
     const koreanLines = (koreanText || '')
+        .trim()
         .split(/\r?\n/)
         .map(line => line.replace(/\r$/, ''))
         .filter(line => line.trim() !== '');
@@ -52,7 +61,7 @@ function prepareDataForTemplate(analyzeText, copyText, koreanText, englishText, 
     
     // 4. english_lines 배열 생성 (englishText가 별도로 주어지지 않으면 copyLines 사용)
     const englishSourceLines = (englishText && englishText.trim().length > 0)
-        ? englishText.split(/\r?\n/).filter(line => line.trim() !== '')
+        ? englishText.trim().split(/\r?\n/).filter(line => line.trim() !== '')
         : copyLines;
     const english_lines = englishSourceLines.map(line => ({ en_line: line }));
 
@@ -86,7 +95,7 @@ function prepareDataForTemplate(analyzeText, copyText, koreanText, englishText, 
     
     // 5. 최종 JSON 객체 반환
     return {
-        analyze_text: analyzeText,
+        analyze_text: cleanAnalyzeText,
         copy_korean_pairs: copyKoreanPairs,
         english_lines,
         // 템플릿에서 {#copy_lines}{en_line}{/copy_lines}, {#korean_lines}{ko_line}{/korean_lines}를 사용할 수 있도록 추가
