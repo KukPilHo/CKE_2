@@ -432,22 +432,25 @@
                     const step2Result = await callGpt(step2Prompt, text);
                     document.getElementById('step2-output').textContent = step2Result;
 
-                    // Step 3: Korean
+                    // Step 3: Korean - step2Result를 라인별로 번역
                     if (!isolationPrompts || !isolationPrompts.role) {
                         throw new Error('Step 3 프롬프트를 찾을 수 없습니다.');
                     }
-                    const step3Prompt = `${isolationPrompts.role}\n\n${isolationPrompts.absoluteRules}\n\n${isolationPrompts.examples}\n\n${isolationPrompts.output}`;
-                    const step3Result = await callGpt(step3Prompt, step2Result);
+                    
+                    // step2Result를 줄별로 분할하여 각 줄을 번역
+                    const lines = step2Result.split(/\r?\n/).filter(line => line.trim() !== '');
+                    const koreanLines = [];
+                    
+                    for (const line of lines) {
+                        const step3Prompt = `${isolationPrompts.role}\n\n${isolationPrompts.absoluteRules}\n\n${isolationPrompts.examples}\n\n${isolationPrompts.output}`;
+                        const translatedLine = await callGpt(step3Prompt, line);
+                        koreanLines.push(translatedLine);
+                    }
+                    
+                    const step3Result = koreanLines.join('\n');
                     document.getElementById('step3-output').textContent = step3Result;
 
-                    // Step 4: English alignment
-                    if (typeof alignmentPrompts !== 'undefined') {
-                        const step4Prompt = `${alignmentPrompts.role}\n\n${alignmentPrompts.hardRules}\n\n${alignmentPrompts.guidance}\n\n${alignmentPrompts.example}\n\n${alignmentPrompts.output}`;
-                        const step4Result = await callGpt(step4Prompt, `영어: ${step2Result}\n한국어: ${step3Result}`);
-                        document.getElementById('step4-output').textContent = step4Result;
-                    } else {
-                        document.getElementById('step4-output').textContent = "Alignment 기능을 사용할 수 없습니다.";
-                    }
+                    // Step 4 제거 - 3단계까지만 출력
 
                     resultPanel.classList.remove('hidden');
                 } catch (error) {
